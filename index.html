@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Живий Метроном — Музичні темпи</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      user-select: none;
+    }
+
+    body {
+      background-color: #0d1117;
+      background-image: radial-gradient(circle at 50% 20%, #161b22 0%, #090d13 100%);
+      color: #f0f6fc;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 15px;
+    }
+
+    /* Блок інструкції */
+    .instruction-card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-left: 5px solid #e3b341;
+      border-radius: 10px;
+      padding: 12px 20px;
+      max-width: 950px;
+      width: 100%;
+      margin-bottom: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+    .instruction-card h3 {
+      font-size: 15px;
+      color: #e3b341;
+      margin-bottom: 5px;
+    }
+    .instruction-card p {
+      font-size: 13px;
+      color: #8b949e;
+      line-height: 1.4;
+    }
+
+    /* Статусна панель */
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 950px;
+      width: 100%;
+      margin-bottom: 15px;
+      background: #161b22;
+      padding: 10px 25px;
+      border-radius: 12px;
+      border: 1px solid #21262d;
+    }
+    .lives-box {
+      font-size: 20px;
+      letter-spacing: 3px;
+    }
+    .stat-item {
+      font-size: 15px;
+      font-weight: 600;
+      color: #c9d1d9;
+    }
+    .stat-val {
+      color: #58a6ff;
+      font-size: 18px;
+    }
+
+    /* Сцена метронома */
+    .metronome-box {
+      background: #161b22;
+      border: 2px solid #30363d;
+      border-radius: 20px;
+      width: 260px;
+      height: 230px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      padding-bottom: 15px;
+      position: relative;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+      margin-bottom: 15px;
+      overflow: hidden;
+    }
+
+    /* Лампочка-індикатор удару */
+    .beat-led {
+      position: absolute;
+      top: 15px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #21262d;
+      border: 2px solid #484f58;
+      transition: background 0.05s, box-shadow 0.05s;
+    }
+    .beat-led.flash {
+      background: #f778ba;
+      box-shadow: 0 0 15px #f778ba;
+    }
+
+    /* Шкала та стрілка метронома */
+    .pendulum-track {
+      position: absolute;
+      top: 40px;
+      width: 200px;
+      height: 140px;
+      display: flex;
+      justify-content: center;
+    }
+    .pendulum-rod {
+      width: 6px;
+      height: 125px;
+      background: linear-gradient(to top, #8b949e, #f0f6fc);
+      border-radius: 3px;
+      transform-origin: bottom center;
+      transform: rotate(0deg);
+      position: relative;
+    }
+    .pendulum-weight {
+      position: absolute;
+      top: 25px;
+      left: -9px;
+      width: 24px;
+      height: 20px;
+      background: #d29922;
+      border-radius: 4px;
+      border: 2px solid #f0e6d2;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    }
+    .pendulum-pivot {
+      position: absolute;
+      bottom: 28px;
+      width: 18px;
+      height: 18px;
+      background: #484f58;
+      border-radius: 50%;
+      border: 3px solid #f0f6fc;
+      z-index: 2;
+    }
+
+    /* Повідомлення */
+    #feedback {
+      height: 25px;
+      font-size: 15px;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 12px;
+    }
+    .correct { color: #3fb950; }
+    .wrong { color: #f85149; }
+
+    /* 5 Об'ємних 3D-кнопок темпів */
+    .buttons-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      max-width: 950px;
+      width: 100%;
+    }
+
+    .key-tempo {
+      background: #161b22;
+      border-radius: 14px;
+      padding: 16px 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.1s ease;
+      box-shadow: 0 6px 0 #000, 0 10px 15px rgba(0,0,0,0.4);
+      border: 2px solid;
+    }
+    .key-tempo:active {
+      transform: translateY(4px);
+      box-shadow: 0 2px 0 #000, 0 4px 6px rgba(0,0,0,0.4);
+    }
+    .key-tempo h2 {
+      font-size: 19px;
+      font-weight: 900;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+    .key-tempo p.ukr-name {
+      font-size: 12px;
+      font-weight: 600;
+      opacity: 0.9;
+    }
+
+    /* Градація швидкості від холодного до вогняного */
+    .t-largo   { border-color: #388bfd; color: #58a6ff; border-bottom: 6px solid #1f6feb; }
+    .t-adagio  { border-color: #2ea043; color: #3fb950; border-bottom: 6px solid #196c2e; }
+    .t-andante { border-color: #d29922; color: #e3b341; border-bottom: 6px solid #8e6611; }
+    .t-allegro { border-color: #db61a2; color: #f778ba; border-bottom: 6px solid #9e3670; }
+    .t-presto  { border-color: #f85149; color: #ff7b72; border-bottom: 6px solid #bd2c00; }
+
+    /* Модальні вікна */
+    .modal {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+    .modal-box {
+      background: #161b22;
+      border: 2px solid #30363d;
+      padding: 30px;
+      border-radius: 18px;
+      text-align: center;
+      max-width: 440px;
+      box-shadow: 0 15px 30px rgba(0,0,0,0.7);
+    }
+    .btn-action {
+      background: #238636;
+      color: white;
+      border: none;
+      border-bottom: 4px solid #196c2e;
+      padding: 12px 28px;
+      font-size: 16px;
+      font-weight: bold;
+      border-radius: 8px;
+      margin-top: 18px;
+      cursor: pointer;
+    }
+    .btn-action:active {
+      transform: translateY(2px);
+      border-bottom-width: 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Блок інструкції -->
+  <div class="instruction-card">
+    <h3>📌 Як користуватися цією грою:</h3>
+    <p>1. Слухайте стукіт метронома та зверніть увагу, як швидко коливається стрілка.<br>
+       2. Визначте швидкість та натисніть на відповідну <strong>3D-клавішу з латинською назвою</strong>.<br>
+       3. <strong>Увага:</strong> У вас є лише <strong>3 спроби (❤️❤️❤️)</strong>. Якщо тричі помилитися — гра почнеться з самого початку!</p>
+  </div>
+
+  <!-- Статусна панель -->
+  <div class="status-bar">
+    <div class="lives-box" id="lives-display">❤️❤️❤️</div>
+    <div class="stat-item">Завдання: <span class="stat-val" id="round-count">1</span> / 15</div>
+    <div class="stat-item">Бали: <span class="stat-val" id="score">0</span></div>
+  </div>
+
+  <div id="feedback">Натисніть «Розпочати», щоб увімкнути звук метронома!</div>
+
+  <!-- Візуальний метроном -->
+  <div class="metronome-box">
+    <div class="beat-led" id="led"></div>
+    <div class="pendulum-track">
+      <div class="pendulum-rod" id="pendulum">
+        <div class="pendulum-weight" id="weight"></div>
+      </div>
+    </div>
+    <div class="pendulum-pivot"></div>
+  </div>
+
+  <!-- 5 об'ємних кнопок темпів -->
+  <div class="buttons-grid">
+    <div class="key-tempo t-largo" data-id="largo">
+      <h2>LARGO</h2>
+      <p class="ukr-name">дуже повільно</p>
+    </div>
+    <div class="key-tempo t-adagio" data-id="adagio">
+      <h2>ADAGIO</h2>
+      <p class="ukr-name">повільно</p>
+    </div>
+    <div class="key-tempo t-andante" data-id="andante">
+      <h2>ANDANTE</h2>
+      <p class="ukr-name">помірно</p>
+    </div>
+    <div class="key-tempo t-allegro" data-id="allegro">
+      <h2>ALLEGRO</h2>
+      <p class="ukr-name">швидко</p>
+    </div>
+    <div class="key-tempo t-presto" data-id="presto">
+      <h2>PRESTO</h2>
+      <p class="ukr-name">дуже швидко</p>
+    </div>
+  </div>
+
+  <!-- Стартове вікно для дозволу звуку браузера -->
+  <div id="startModal" class="modal">
+    <div class="modal-box">
+      <h2>🎵 Готові слухати темп?</h2>
+      <p style="margin-top: 12px; color: #8b949e;">Натисніть кнопку, щоб запустити живий метроном та розпочати випробування!</p>
+      <button class="btn-action" onclick="startGame()">Розпочати гру</button>
+    </div>
+  </div>
+
+  <!-- Вікно поразки (3 помилки) -->
+  <div id="loseModal" class="modal" style="display: none;">
+    <div class="modal-box">
+      <h2 style="color: #f85149;">💔 3 помилки!</h2>
+      <p style="margin-top: 12px; color: #8b949e;">Ви використали всі спроби. Гру перезавантажено на початок. Будьте уважнішими до пульсу метронома!</p>
+      <button class="btn-action" onclick="restartGame()">Спробувати знову</button>
+    </div>
+  </div>
+
+  <!-- Вікно перемоги -->
+  <div id="winModal" class="modal" style="display: none;">
+    <div class="modal-box">
+      <h2 style="color: #3fb950;">🏆 Справжній Маестро!</h2>
+      <p style="margin-top: 12px; color: #8b949e;">Ви безпомилково розпізнали всі латинські темпи на слух та зір!</p>
+      <button class="btn-action" onclick="restartGame()">Грати ще раз</button>
+    </div>
+  </div>
+
+  <script>
+    // База даних темпів
+    const tempoList = [
+      { id: "largo",   name: "LARGO",   ukr: "дуже повільно", bpm: 44,  weightPos: 15 },
+      { id: "adagio",  name: "ADAGIO",  ukr: "повільно",      bpm: 62,  weightPos: 35 },
+      { id: "andante", name: "ANDANTE", ukr: "помірно",       bpm: 90,  weightPos: 55 },
+      { id: "allegro", name: "ALLEGRO", ukr: "швидко",        bpm: 132, weightPos: 75 },
+      { id: "presto",  name: "PRESTO",  ukr: "дуже швидко",   bpm: 184, weightPos: 95 }
+    ];
+
+    let currentTempo = null;
+    let score = 0;
+    let lives = 3;
+    let round = 1;
+    const maxRounds = 15;
+    let metronomeTimer = null;
+    let swingDirection = 1;
+
+    // Звуковий рушій (Web Audio API)
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+
+    function ensureAudio() {
+      if (!audioCtx) audioCtx = new AudioContext();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    // Клацання справжнього дерев'яного метронома
+    function playMetronomeClick() {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(1000, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 0.025);
+      
+      gain.gain.setValueAtTime(0.8, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.025);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.025);
+    }
+
+    function playTone(freq, dur, type = "sine") {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + dur);
+    }
+
+    const pendulumEl = document.getElementById("pendulum");
+    const weightEl = document.getElementById("weight");
+    const ledEl = document.getElementById("led");
+    const feedbackEl = document.getElementById("feedback");
+    const livesEl = document.getElementById("lives-display");
+    const scoreEl = document.getElementById("score");
+    const roundEl = document.getElementById("round-count");
+
+    function updateLivesUI() {
+      if (lives === 3) livesEl.textContent = "❤️❤️❤️";
+      else if (lives === 2) livesEl.textContent = "❤️❤️🤍";
+      else if (lives === 1) livesEl.textContent = "❤️🤍🤍";
+      else livesEl.textContent = "🤍🤍🤍";
+    }
+
+    function stopMetronome() {
+      if (metronomeTimer) {
+        clearInterval(metronomeTimer);
+        metronomeTimer = null;
+      }
+      pendulumEl.style.transform = "rotate(0deg)";
+    }
+
+    function startMetronome(bpm, weightTop) {
+      stopMetronome();
+      weightEl.style.top = weightTop + "px";
+
+      const intervalMs = (60 / bpm) * 1000;
+      swingDirection = 1;
+
+      // Перший удар
+      playMetronomeClick();
+      flashLed();
+      pendulumEl.style.transition = `transform ${intervalMs / 1000}s ease-in-out`;
+      pendulumEl.style.transform = `rotate(${28 * swingDirection}deg)`;
+
+      metronomeTimer = setInterval(() => {
+        playMetronomeClick();
+        flashLed();
+        swingDirection *= -1;
+        pendulumEl.style.transform = `rotate(${28 * swingDirection}deg)`;
+      }, intervalMs);
+    }
+
+    function flashLed() {
+      ledEl.classList.add("flash");
+      setTimeout(() => ledEl.classList.remove("flash"), 60);
+    }
+
+    function setNextRound() {
+      if (round > maxRounds) {
+        stopMetronome();
+        document.getElementById("winModal").style.display = "flex";
+        playTone(523, 0.2);
+        setTimeout(() => playTone(659, 0.2), 150);
+        setTimeout(() => playTone(784, 0.4), 300);
+        return;
+      }
+
+      roundEl.textContent = round;
+      feedbackEl.innerHTML = `Слухайте та дивіться: <strong>який це темп?</strong>`;
+
+      // Обираємо випадковий темп
+      currentTempo = tempoList[Math.floor(Math.random() * tempoList.length)];
+      startMetronome(currentTempo.bpm, currentTempo.weightPos);
+    }
+
+    // Обробка натискання на клавіші
+    document.querySelectorAll(".key-tempo").forEach(btn => {
+      btn.addEventListener("click", () => {
+        if (!currentTempo) return;
+        const selectedId = btn.dataset.id;
+
+        if (selectedId === currentTempo.id) {
+          // ПРАВИЛЬНО
+          playTone(600, 0.15, "triangle");
+          score += 10;
+          scoreEl.textContent = score;
+          feedbackEl.innerHTML = `<span class="correct">✔ Чудово! Це дійсно ${currentTempo.name} (${currentTempo.ukr})!</span>`;
+          round++;
+          
+          stopMetronome();
+          setTimeout(setNextRound, 1000);
+        } else {
+          // ПОМИЛКА
+          lives--;
+          updateLivesUI();
+          playTone(180, 0.25, "sawtooth");
+
+          if (lives <= 0) {
+            stopMetronome();
+            feedbackEl.innerHTML = `<span class="wrong">✖ 3 помилки! Скидання...</span>`;
+            setTimeout(() => {
+              document.getElementById("loseModal").style.display = "flex";
+            }, 400);
+          } else {
+            feedbackEl.innerHTML = `<span class="wrong">✖ Ні, це був ${currentTempo.name} (${currentTempo.ukr})! Залишилось життів: ${lives}</span>`;
+            round++;
+            stopMetronome();
+            setTimeout(setNextRound, 1500);
+          }
+        }
+      });
+    });
+
+    function startGame() {
+      ensureAudio();
+      document.getElementById("startModal").style.display = "none";
+      restartGame();
+    }
+
+    function restartGame() {
+      document.getElementById("loseModal").style.display = "none";
+      document.getElementById("winModal").style.display = "none";
+      lives = 3;
+      score = 0;
+      round = 1;
+      scoreEl.textContent = score;
+      updateLivesUI();
+      setNextRound();
+    }
+  </script>
+</body>
+</html>
